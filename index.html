@@ -291,6 +291,11 @@ function log(msg, cls) {
   line.textContent = `${t}  ${msg}`; if (cls) line.className = cls;
   el.appendChild(line); el.scrollTop = el.scrollHeight;
 }
+// Some iOS Bluetooth browsers reject with a bare string or undefined, not an Error.
+function errText(e) {
+  if (e instanceof Error) return `${e.name}: ${e.message}`;
+  try { return `${typeof e}: ${typeof e === "string" ? e : JSON.stringify(e)}`; } catch { return String(e); }
+}
 function setStatus(text, s) { $("statusText").textContent = text; $("status").dataset.state = s; }
 
 // ---------- glyph rendering (port of render_glyph_set) ----------
@@ -419,8 +424,8 @@ async function requestWatch() {
       return await navigator.bluetooth.requestDevice(r.opts);
     } catch (e) {
       last = e;
-      log(`  ${e.name}: ${e.message}`, "err");
-      if (/cancel/i.test(e.message)) break;
+      log(`  ${errText(e)}`, "err");
+      if (/cancel/i.test(errText(e))) break;
     }
   }
   throw last;
@@ -449,7 +454,7 @@ async function connect() {
     setStatus(`Connected to ${device.name || "watch"}`, "on");
     $("disconnect").disabled = false; $("connect").disabled = true; $("upload").disabled = !state.face;
   } catch (e) {
-    log(`connect failed: ${e && e.name}: ${e && e.message}`, "err"); setStatus("Connect failed (see log)", "bad");
+    log(`connect failed: ${errText(e)}`, "err"); setStatus("Connect failed (see log)", "bad");
   }
 }
 
@@ -547,7 +552,9 @@ $("btNote").textContent = navigator.bluetooth
   : "This browser can't use Bluetooth. On iPhone, open this page in the Bluefy app.";
 
 document.fonts.load(`700 40px ${FONT}`).catch(() => {}).finally(build);
-log("ready · default face built");
+log("ready · page version 3 · default face built");
+log(`browser: ${navigator.userAgent}`);
+log(`bluetooth object: ${navigator.bluetooth ? Object.keys(Object.getPrototypeOf(navigator.bluetooth) || {}).concat(Object.keys(navigator.bluetooth)).join(", ") || "present" : "missing"}`);
 </script>
 
 </html>
