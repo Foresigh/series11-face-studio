@@ -1,0 +1,531 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>SERIES11 Face Studio</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Atkinson+Hyperlegible:wght@400;700&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: a bench — the watch-face parts on the left, the transfer console on the right; one column on phones. */
+:root {
+  --bg: #eef1f2;
+  --panel: #ffffff;
+  --ink: #1b2326;
+  --muted: #5c6a70;
+  --line: #d3dadd;
+  --accent: #e0682b;
+  --accent-ink: #ffffff;
+  --screen: #0d1113;
+  --ok: #1f8a4c;
+  --bad: #c0392b;
+  --display: "Barlow Condensed", "Arial Narrow", "Helvetica Neue", Arial, sans-serif;
+  --body: "Atkinson Hyperlegible", "Segoe UI", system-ui, sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #12171a; --panel: #1b2226; --ink: #e6ecee; --muted: #93a2a8; --line: #2c363b;
+    --accent: #f08447; --accent-ink: #1b1209; --screen: #050708; --ok: #4cc27f; --bad: #ef6b5c;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #12171a; --panel: #1b2226; --ink: #e6ecee; --muted: #93a2a8; --line: #2c363b;
+  --accent: #f08447; --accent-ink: #1b1209; --screen: #050708; --ok: #4cc27f; --bad: #ef6b5c;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body {
+  background: var(--bg); color: var(--ink); font-family: var(--body); font-size: 15px; line-height: 1.5;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 20px 40px;
+}
+.wrap { max-width: 1080px; margin: 0 auto; display: grid; gap: 20px; }
+header h1 { font-family: var(--display); font-weight: 700; font-size: 2.1rem; letter-spacing: .01em; margin: 0; line-height: 1.1; text-wrap: balance; }
+header p { margin: 4px 0 0; color: var(--muted); max-width: 62ch; }
+.bench { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: 20px; align-items: start; }
+@media (max-width: 820px) { .bench { grid-template-columns: minmax(0, 1fr); } }
+section.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 18px; display: grid; gap: 14px; min-width: 0; }
+h2 { font-family: var(--display); font-weight: 700; font-size: 1.25rem; letter-spacing: .04em; text-transform: uppercase; margin: 0; }
+.label { font-size: .78rem; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); font-weight: 700; }
+.row { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+.pic-row { display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-start; }
+canvas.pic { width: 256px; height: 258px; max-width: 100%; image-rendering: pixelated; background: var(--screen); border-radius: 6px; display: block; }
+.pic-meta { display: grid; gap: 10px; min-width: 0; flex: 1 1 200px; }
+.spec { font-family: var(--mono); font-size: .8rem; color: var(--muted); }
+button, .file-btn {
+  font: 700 .95rem var(--body); border-radius: 8px; padding: 9px 14px; cursor: pointer;
+  border: 1px solid var(--line); background: var(--panel); color: var(--ink);
+}
+button.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+button:disabled { opacity: .45; cursor: not-allowed; }
+button:focus-visible, .file-btn:focus-within, input:focus-visible, select:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+.file-btn input { position: absolute; width: 1px; height: 1px; opacity: 0; }
+.file-btn { position: relative; display: inline-block; }
+.swatch { display: flex; align-items: center; gap: 8px; }
+.swatch input[type=color] { width: 44px; height: 34px; border: 1px solid var(--line); border-radius: 6px; background: none; padding: 2px; }
+.parts { background: var(--screen); border-radius: 8px; padding: 12px; display: grid; gap: 10px; overflow-x: auto; }
+.strip { display: flex; gap: 6px; align-items: flex-end; flex-wrap: wrap; }
+.strip canvas { image-rendering: pixelated; display: block; }
+.strip-label { font-family: var(--mono); font-size: .7rem; color: #8a979c; letter-spacing: .04em; }
+.opts { display: grid; gap: 8px; }
+.opts label { display: flex; gap: 8px; align-items: flex-start; }
+.opts small { color: var(--muted); display: block; }
+select { font: inherit; padding: 6px 8px; border-radius: 6px; border: 1px solid var(--line); background: var(--panel); color: var(--ink); }
+.status { display: flex; align-items: center; gap: 8px; font-weight: 700; }
+.dot { width: 10px; height: 10px; border-radius: 50%; background: var(--muted); flex: none; }
+.status[data-state=on] .dot { background: var(--ok); }
+.status[data-state=busy] .dot { background: var(--accent); }
+.status[data-state=bad] .dot { background: var(--bad); }
+.progress { height: 10px; background: var(--line); border-radius: 5px; overflow: hidden; }
+.progress > div { height: 100%; width: 0; background: var(--accent); transition: width .2s; }
+@media (prefers-reduced-motion: reduce) { .progress > div { transition: none; } }
+.confirm { border: 1px solid var(--accent); border-radius: 8px; padding: 12px; display: grid; gap: 10px; }
+.log { font-family: var(--mono); font-size: .76rem; background: var(--screen); color: #c9d4d8; border-radius: 8px; padding: 10px; height: 240px; overflow: auto; white-space: pre-wrap; word-break: break-all; }
+.log .rx { color: #7fd6a3; } .log .err { color: #ff8f80; }
+.note { font-size: .88rem; color: var(--muted); }
+.note strong { color: var(--ink); }
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>SERIES11 Face Studio</h1>
+    <p>Pick a picture, choose colors, and send the face straight to the watch over Bluetooth. Built for the FitPro face format: 28 parts plus a 128&times;129 picture, sent as 102 blocks over FF22.</p>
+  </header>
+
+  <div class="bench">
+    <section class="panel" aria-labelledby="h-face">
+      <h2 id="h-face">Face</h2>
+      <div class="pic-row">
+        <canvas id="pic" class="pic" width="128" height="129" aria-label="Picture as it will appear on the watch"></canvas>
+        <div class="pic-meta">
+          <span class="label">Picture</span>
+          <div class="row">
+            <label class="file-btn">Choose picture<input id="file" type="file" accept="image/*"></label>
+            <button id="resetPic" type="button">Use default ring</button>
+          </div>
+          <span class="spec" id="picSpec">Default ring &middot; 128&times;129 px &middot; 253 colors</span>
+          <div class="row">
+            <label class="swatch"><input id="timeColor" type="color" value="#ffffff"> Time digits</label>
+            <label class="swatch"><input id="accentColor" type="color" value="#ff8a3d"> Accent</label>
+          </div>
+          <span class="spec" id="faceSpec"></span>
+        </div>
+      </div>
+      <div>
+        <span class="label">Parts sent to the watch</span>
+        <div class="parts" id="parts" aria-label="Rendered face parts"></div>
+        <p class="note">The watch decides where each part sits. This shows every part at 2&times; so you can check the digits and day names read cleanly.</p>
+      </div>
+    </section>
+
+    <section class="panel" aria-labelledby="h-send">
+      <h2 id="h-send">Send to watch</h2>
+      <div class="status" id="status" data-state="off"><span class="dot"></span><span id="statusText">Not connected</span></div>
+      <p class="note" id="btNote"></p>
+      <div class="row">
+        <button id="connect" type="button" class="primary">Connect to SERIES11</button>
+        <button id="disconnect" type="button" disabled>Disconnect</button>
+      </div>
+      <div class="opts">
+        <label><input id="optListen" type="checkbox" checked> <span>Listen for watch replies (FF11)<small>FitPro keeps this on. Replies show in the log.</small></span></label>
+        <label><input id="optBind" type="checkbox" checked> <span>Send bind first<small><code>cd00021301</code>, FitPro's first command after connecting.</small></span></label>
+        <label><input id="optAndroid" type="checkbox"> <span>Send "Android no-pairing" first<small><code>cd000612010a000102</code>. Android-only; leave off on iPhone.</small></span></label>
+        <label for="pace" class="row" style="gap:8px"><span>Pace</span>
+          <select id="pace">
+            <option value="fitpro">FitPro (about 21 s)</option>
+            <option value="slow">Slow (about 46 s)</option>
+            <option value="vslow">Very slow (about 2 min)</option>
+          </select>
+        </label>
+      </div>
+      <div class="progress" aria-hidden="true"><div id="bar"></div></div>
+      <div class="row">
+        <button id="upload" type="button" class="primary" disabled>Upload face</button>
+        <button id="cancel" type="button" disabled>Stop</button>
+      </div>
+      <div class="confirm" id="confirm" hidden>
+        <div><strong>Replace the watch's custom face?</strong><br><span class="note">Keep the watch awake and close by. Don't leave this page until it says done.</span></div>
+        <div class="row"><button id="confirmGo" type="button" class="primary">Send it</button><button id="confirmNo" type="button">Not now</button></div>
+      </div>
+      <div>
+        <span class="label">Log</span>
+        <div class="log" id="log" role="log" aria-live="polite"></div>
+      </div>
+    </section>
+  </div>
+</div>
+
+<script id="face-core">
+/*CORE-START*/
+// Port of face_tool.py: face file format and FitPro upload framing.
+const FACE = {
+  MAGIC: [0x58, 0x63], ELEMENT_TYPE_MONO: 2, ELEMENT_F2: 14,
+  START_PAYLOAD: [0x03, 0x01, 0xff, 0xff, 0xff], BLOCK_DATA: 200,
+  SMALL: [12, 20], DIVIDER: [36, 2], BIG: [30, 50], DAY: [36, 13],
+  PICTURE: [128, 129], PALETTE_SIZE: 253,
+  DAYS: ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"],
+};
+
+function rgbTo565(r, g, b) { return ((r >> 3) << 11) | ((g >> 2) << 5) | (b >> 3); }
+function rgb565ToRgb(v) { return [((v >> 11) & 0x1f) << 3, ((v >> 5) & 0x3f) << 2, (v & 0x1f) << 3]; }
+function hexToRgb(hex) { const h = hex.replace("#", ""); return [0, 2, 4].map(i => parseInt(h.slice(i, i + 2), 16)); }
+function u16le(v) { return [v & 0xff, (v >> 8) & 0xff]; }
+function be(v, n) { const out = []; for (let i = n - 1; i >= 0; i--) out.push(Math.floor(v / 2 ** (8 * i)) & 0xff); return out; }
+function concat(parts) {
+  const len = parts.reduce((a, p) => a + p.length, 0);
+  const out = new Uint8Array(len); let o = 0;
+  for (const p of parts) { out.set(p, o); o += p.length; }
+  return out;
+}
+
+// mask: Uint8Array of w*h, 1 = lit pixel
+function bitsToElement(mask, w, h, fg565, bg565 = 0) {
+  const row = (w + 7) >> 3, data = new Uint8Array(row * h);
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++)
+    if (mask[y * w + x]) data[y * row + (x >> 3)] |= 0x80 >> (x % 8);
+  return { w, h, type: FACE.ELEMENT_TYPE_MONO, f2: FACE.ELEMENT_F2, fg: fg565, bg: bg565, data };
+}
+
+function packElement(el) {
+  return concat([FACE.MAGIC, u16le(el.w), u16le(el.h), u16le(el.type), u16le(el.f2),
+                 u16le(el.fg), u16le(el.bg), el.data]);
+}
+
+// Median-cut quantize RGB pixels (Uint8Array, 3 bytes per pixel) to at most PALETTE_SIZE colors.
+function quantize(rgb, maxColors) {
+  const n = rgb.length / 3;
+  let boxes = [Array.from({ length: n }, (_, i) => i)];
+  const range = box => {
+    let lo = [255, 255, 255], hi = [0, 0, 0];
+    for (const i of box) for (let c = 0; c < 3; c++) {
+      const v = rgb[i * 3 + c]; if (v < lo[c]) lo[c] = v; if (v > hi[c]) hi[c] = v;
+    }
+    const spans = hi.map((v, c) => v - lo[c]);
+    const ch = spans.indexOf(Math.max(...spans));
+    return { ch, span: spans[ch] };
+  };
+  let info = boxes.map(range);
+  while (boxes.length < maxColors) {
+    let best = -1, score = 0;
+    boxes.forEach((b, k) => { const s = info[k].span * b.length; if (info[k].span > 0 && s > score) { score = s; best = k; } });
+    if (best < 0) break;
+    const box = boxes[best], ch = info[best].ch;
+    box.sort((a, b) => rgb[a * 3 + ch] - rgb[b * 3 + ch]);
+    const mid = box.length >> 1;
+    const a = box.slice(0, mid), b = box.slice(mid);
+    boxes.splice(best, 1, a, b);
+    info.splice(best, 1, range(a), range(b));
+  }
+  const palette = [], index = new Uint8Array(n);
+  boxes.forEach((box, k) => {
+    const sum = [0, 0, 0];
+    for (const i of box) { index[i] = k; for (let c = 0; c < 3; c++) sum[c] += rgb[i * 3 + c]; }
+    palette.push(sum.map(s => Math.round(s / box.length)));
+  });
+  return { palette, index };
+}
+
+// rgb: Uint8Array of 128*129*3
+function encodePicture(rgb) {
+  const [w, h] = FACE.PICTURE, P = FACE.PALETTE_SIZE;
+  const { palette, index } = quantize(rgb, P);
+  const pal = [];
+  for (let i = 0; i < P; i++) { const c = palette[i] || [0, 0, 0]; pal.push(...u16le(rgbTo565(c[0], c[1], c[2]))); }
+  const header = [0x42, 0x4d, ...u16le(w), ...u16le(h), ...u16le(P), ...u16le(10 + 2 * P)];
+  return concat([header, pal, index]);
+}
+
+function parseFace(face) {
+  const elements = []; let pos = 0;
+  const rd = o => face[o] | (face[o + 1] << 8);
+  while (face[pos] === 0x58 && face[pos + 1] === 0x63) {
+    const w = rd(pos + 2), h = rd(pos + 4);
+    const size = 14 + ((w + 7) >> 3) * h;
+    elements.push({ w, h, type: rd(pos + 6), f2: rd(pos + 8), fg: rd(pos + 10), bg: rd(pos + 12),
+                    data: face.slice(pos + 14, pos + size) });
+    pos += size;
+  }
+  return { elements, picture: face.slice(pos) };
+}
+
+function makeFrame(cmd, payload) {
+  const inner = concat([[0x1f, 0x01, cmd], be(payload.length, 2), payload]);
+  return concat([[0xcd], be(inner.length, 2), inner]);
+}
+
+function framesFor(face) {
+  const frames = [makeFrame(0x02, FACE.START_PAYLOAD)];
+  for (let i = 0; i < face.length; i += FACE.BLOCK_DATA) {
+    const seq = i / FACE.BLOCK_DATA + 1;
+    const body = concat([be(seq, 2), face.slice(i, i + FACE.BLOCK_DATA)]);
+    let s = 0; for (const v of body) s += v;
+    frames.push(makeFrame(0x01, concat([body, be(s & 0xffff, 2)])));
+  }
+  let total = 0; for (const v of face) total += v;
+  frames.push(makeFrame(0x03, concat([be(face.length, 4), be(total % 2 ** 32, 4)])));
+  return frames;
+}
+
+function buildFace(elements, pictureBytes) { return concat([...elements.map(packElement), pictureBytes]); }
+
+if (typeof module !== "undefined") module.exports = { FACE, rgbTo565, bitsToElement, packElement, quantize, encodePicture, parseFace, makeFrame, framesFor, buildFace };
+/*CORE-END*/
+</script>
+
+<script>
+const $ = id => document.getElementById(id);
+const FONT = '"Barlow Condensed"';
+const state = { sourceImg: null, face: null, frames: null, device: null, ff22: null, ff11: null, busy: false, abort: false };
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const hex = a => Array.from(a, b => b.toString(16).padStart(2, "0")).join("");
+
+function log(msg, cls) {
+  const el = $("log"), line = document.createElement("div");
+  const t = new Date().toLocaleTimeString([], { hour12: false });
+  line.textContent = `${t}  ${msg}`; if (cls) line.className = cls;
+  el.appendChild(line); el.scrollTop = el.scrollHeight;
+}
+function setStatus(text, s) { $("statusText").textContent = text; $("status").dataset.state = s; }
+
+// ---------- glyph rendering (port of render_glyph_set) ----------
+function measure(ctx, t) {
+  const m = ctx.measureText(t);
+  return [-m.actualBoundingBoxLeft, -m.actualBoundingBoxAscent, m.actualBoundingBoxRight, m.actualBoundingBoxDescent];
+}
+function renderGlyphSet(texts, w, h, padX, padY) {
+  const c = document.createElement("canvas"); c.width = w; c.height = h;
+  const ctx = c.getContext("2d", { willReadFrequently: true });
+  ctx.font = `700 200px ${FONT}`;
+  let boxes = texts.map(t => measure(ctx, t));
+  let top = Math.min(...boxes.map(b => b[1])), bottom = Math.max(...boxes.map(b => b[3]));
+  const widest = Math.max(...boxes.map(b => b[2] - b[0]));
+  const scale = Math.min((h - 2 * padY) / (bottom - top), (w - 2 * padX) / widest);
+  ctx.font = `700 ${Math.max(4, Math.floor(200 * scale))}px ${FONT}`;
+  boxes = texts.map(t => measure(ctx, t));
+  top = Math.min(...boxes.map(b => b[1])); bottom = Math.max(...boxes.map(b => b[3]));
+  return texts.map((t, k) => {
+    const b = boxes[k];
+    ctx.fillStyle = "#000"; ctx.fillRect(0, 0, w, h);
+    ctx.fillStyle = "#fff"; ctx.textBaseline = "alphabetic";
+    ctx.fillText(t, Math.floor((w - (b[2] - b[0])) / 2 - b[0]), Math.floor((h - (bottom - top)) / 2 - top));
+    const px = ctx.getImageData(0, 0, w, h).data, mask = new Uint8Array(w * h);
+    for (let i = 0; i < w * h; i++) mask[i] = px[i * 4] >= 128 ? 1 : 0;
+    return mask;
+  });
+}
+
+// ---------- picture ----------
+function defaultPicture(accent) {
+  const s = 4, [W, H] = FACE.PICTURE, c = document.createElement("canvas");
+  c.width = W * s; c.height = H * s;
+  const ctx = c.getContext("2d");
+  ctx.fillStyle = "#000"; ctx.fillRect(0, 0, c.width, c.height);
+  const r = Math.floor(Math.min(c.width, c.height) * 0.40), lw = Math.floor(r * 0.16);
+  ctx.lineWidth = lw;
+  const arc = (a0, a1, color) => { ctx.strokeStyle = color; ctx.beginPath(); ctx.arc(c.width / 2, c.height / 2, r - lw / 2, a0, a1); ctx.stroke(); };
+  arc(0, Math.PI * 2, "rgb(38,38,38)");
+  arc(-Math.PI / 2, Math.PI, accent);
+  return c;
+}
+function coverFit(src) {
+  const [W, H] = FACE.PICTURE, c = document.createElement("canvas"); c.width = W; c.height = H;
+  const ctx = c.getContext("2d", { willReadFrequently: true });
+  const sw = src.naturalWidth || src.width, sh = src.naturalHeight || src.height;
+  const scale = Math.max(W / sw, H / sh), dw = sw * scale, dh = sh * scale;
+  ctx.imageSmoothingQuality = "high";
+  ctx.fillStyle = "#000"; ctx.fillRect(0, 0, W, H);
+  ctx.drawImage(src, (W - dw) / 2, (H - dh) / 2, dw, dh);
+  return ctx.getImageData(0, 0, W, H).data;
+}
+
+// ---------- build ----------
+function build() {
+  const time = hexToRgb($("timeColor").value), accent = hexToRgb($("accentColor").value);
+  const t565 = rgbTo565(...time), a565 = rgbTo565(...accent);
+  const digits = [..."0123456789"];
+  const groups = [
+    { name: "small digits", masks: renderGlyphSet(digits, ...FACE.SMALL, 1, 1), size: FACE.SMALL, fg: a565 },
+    { name: "divider", masks: [new Uint8Array(FACE.DIVIDER[0] * FACE.DIVIDER[1]).fill(1)], size: FACE.DIVIDER, fg: a565 },
+    { name: "time digits", masks: renderGlyphSet(digits, ...FACE.BIG, 2, 2), size: FACE.BIG, fg: t565 },
+    { name: "day names", masks: renderGlyphSet(FACE.DAYS, ...FACE.DAY, 1, 1), size: FACE.DAY, fg: a565 },
+  ];
+  const elements = groups.flatMap(g => g.masks.map(m => bitsToElement(m, g.size[0], g.size[1], g.fg)));
+
+  const srcCanvas = state.sourceImg || defaultPicture(`rgb(${accent.join(",")})`);
+  const rgba = coverFit(srcCanvas), n = FACE.PICTURE[0] * FACE.PICTURE[1], rgb = new Uint8Array(n * 3);
+  for (let i = 0; i < n; i++) { rgb[i * 3] = rgba[i * 4]; rgb[i * 3 + 1] = rgba[i * 4 + 1]; rgb[i * 3 + 2] = rgba[i * 4 + 2]; }
+  const picture = encodePicture(rgb);
+  state.face = buildFace(elements, picture);
+  state.frames = framesFor(state.face);
+
+  drawPicture(picture);
+  drawParts(groups);
+  const parsed = parseFace(state.face);
+  $("faceSpec").textContent = `${state.face.length.toLocaleString()} bytes · ${parsed.elements.length} parts · ${state.frames.length - 2} blocks`;
+  $("upload").disabled = !state.ff22 || state.busy;
+}
+
+function drawPicture(pic) {
+  const [W, H] = FACE.PICTURE, off = 10 + 2 * FACE.PALETTE_SIZE, ctx = $("pic").getContext("2d");
+  const img = ctx.createImageData(W, H);
+  for (let i = 0; i < W * H; i++) {
+    const k = pic[off + i], v = pic[10 + 2 * k] | (pic[11 + 2 * k] << 8), [r, g, b] = rgb565ToRgb(v);
+    img.data.set([r, g, b, 255], i * 4);
+  }
+  ctx.putImageData(img, 0, 0);
+}
+
+function drawParts(groups) {
+  const host = $("parts"); host.textContent = "";
+  for (const g of groups) {
+    const lab = document.createElement("div"); lab.className = "strip-label";
+    lab.textContent = `${g.name} · ${g.size[0]}×${g.size[1]} · ${g.masks.length}`;
+    const strip = document.createElement("div"); strip.className = "strip";
+    const [r, gg, b] = rgb565ToRgb(g.fg);
+    for (const m of g.masks) {
+      const [w, h] = g.size, c = document.createElement("canvas"); c.width = w; c.height = h;
+      c.style.width = `${w * 2}px`; c.style.height = `${h * 2}px`;
+      const ctx = c.getContext("2d"), img = ctx.createImageData(w, h);
+      for (let i = 0; i < w * h; i++) img.data.set(m[i] ? [r, gg, b, 255] : [0, 0, 0, 255], i * 4);
+      ctx.putImageData(img, 0, 0); strip.appendChild(c);
+    }
+    host.append(lab, strip);
+  }
+}
+
+// ---------- Bluetooth ----------
+const SVC = 0xffff, FF22 = 0xff22, FF11 = 0xff11;
+
+async function connect() {
+  if (!navigator.bluetooth) { log("This browser has no Web Bluetooth. On iPhone, open this page in Bluefy.", "err"); return; }
+  try {
+    setStatus("Choosing watch…", "busy");
+    const device = await navigator.bluetooth.requestDevice({
+      filters: [{ namePrefix: "SERIES" }, { services: [SVC] }], optionalServices: [SVC],
+    });
+    device.addEventListener("gattserverdisconnected", onDisconnect);
+    log(`connecting to ${device.name || "watch"}…`);
+    const server = await device.gatt.connect();
+    const svc = await server.getPrimaryService(SVC);
+    state.device = device;
+    state.ff22 = await svc.getCharacteristic(FF22);
+    log(`connected · FF22 ready (${state.ff22.writeValueWithoutResponse ? "fast writes" : "standard writes"})`);
+    if ($("optListen").checked) {
+      try {
+        state.ff11 = await svc.getCharacteristic(FF11);
+        state.ff11.addEventListener("characteristicvaluechanged", e => log(`watch → ${hex(new Uint8Array(e.target.value.buffer))}`, "rx"));
+        await state.ff11.startNotifications();
+        log("listening on FF11");
+      } catch (e) { log(`couldn't listen on FF11: ${e.message}`, "err"); }
+    }
+    setStatus(`Connected to ${device.name || "watch"}`, "on");
+    $("disconnect").disabled = false; $("connect").disabled = true; $("upload").disabled = !state.face;
+  } catch (e) {
+    log(`connect failed: ${e.message}`, "err"); setStatus("Not connected", "off");
+  }
+}
+
+function onDisconnect() {
+  log("watch disconnected", "err");
+  state.abort = true; state.ff22 = null; state.ff11 = null;
+  setStatus("Disconnected", "bad");
+  $("connect").disabled = false; $("disconnect").disabled = true; $("upload").disabled = true;
+}
+
+async function write(bytes) {
+  for (let i = 0; i < bytes.length; i += 20) {
+    if (state.abort) throw new Error("stopped");
+    const chunk = bytes.slice(i, i + 20);
+    if (state.ff22.writeValueWithoutResponse) await state.ff22.writeValueWithoutResponse(chunk);
+    else await state.ff22.writeValue(chunk);
+    await sleep(11);
+  }
+}
+
+const PACES = {
+  fitpro: n => (n <= 19 ? 450 : 150),
+  slow: () => 450,
+  vslow: () => 1000,
+};
+
+async function upload() {
+  $("confirm").hidden = true;
+  const frames = state.frames, blocks = frames.slice(1, -1), pace = PACES[$("pace").value];
+  state.busy = true; state.abort = false;
+  $("upload").disabled = true; $("cancel").disabled = false; $("bar").style.width = "0";
+  setStatus("Uploading…", "busy");
+  try {
+    const startup = [];
+    if ($("optAndroid").checked) startup.push(["android no-pairing", "cd000612010a000102"]);
+    if ($("optBind").checked) startup.push(["bind", "cd00021301"]);
+    for (const [name, h] of startup) {
+      log(`sending ${name}: ${h}`);
+      await write(Uint8Array.from(h.match(/../g), x => parseInt(x, 16)));
+      await sleep(200);
+    }
+    if (startup.length) await sleep(1000);
+    log(`sending start ${hex(frames[0])}`);
+    await write(frames[0]);
+    await sleep(440);
+    for (let n = 1; n <= blocks.length; n++) {
+      const began = performance.now();
+      await write(blocks[n - 1]);
+      $("bar").style.width = `${(n / blocks.length) * 100}%`;
+      if (n <= 3 || n % 10 === 0 || n === blocks.length) log(`block ${n}/${blocks.length} sent`);
+      await sleep(Math.max(0, pace(n) - (performance.now() - began)));
+    }
+    log(`sending finish ${hex(frames[frames.length - 1])}`);
+    await write(frames[frames.length - 1]);
+    setStatus("Finishing…", "busy");
+    await sleep(6000);
+    if (state.abort) throw new Error("watch disconnected after finish");
+    log("done · long-press the watch face and pick the new one", "rx");
+    setStatus("Face sent", "on");
+  } catch (e) {
+    log(`upload stopped: ${e.message}`, "err");
+    if (state.ff22) setStatus("Upload stopped", "bad");
+  } finally {
+    state.busy = false; $("cancel").disabled = true; $("upload").disabled = !state.ff22;
+  }
+}
+
+// ---------- wiring ----------
+$("file").addEventListener("change", e => {
+  const f = e.target.files[0]; if (!f) return;
+  const img = new Image();
+  img.onload = () => {
+    state.sourceImg = img;
+    $("picSpec").textContent = `${f.name} · cropped to 128×129 · 253 colors`;
+    build();
+  };
+  img.onerror = () => log("couldn't read that picture; try a JPEG or PNG", "err");
+  img.src = URL.createObjectURL(f);
+});
+$("resetPic").addEventListener("click", () => {
+  state.sourceImg = null; $("file").value = "";
+  $("picSpec").textContent = "Default ring · 128×129 px · 253 colors"; build();
+});
+$("timeColor").addEventListener("input", build);
+$("accentColor").addEventListener("input", build);
+$("connect").addEventListener("click", connect);
+$("disconnect").addEventListener("click", () => state.device && state.device.gatt.disconnect());
+$("upload").addEventListener("click", () => { $("confirm").hidden = false; });
+$("confirmNo").addEventListener("click", () => { $("confirm").hidden = true; });
+$("confirmGo").addEventListener("click", upload);
+$("cancel").addEventListener("click", () => { state.abort = true; log("stopping…"); });
+
+$("btNote").textContent = navigator.bluetooth
+  ? "Bluetooth is available. Close FitPro and keep the watch awake before connecting."
+  : "This browser can't use Bluetooth. On iPhone, open this page in the Bluefy app.";
+
+document.fonts.load(`700 40px ${FONT}`).catch(() => {}).finally(build);
+log("ready · default face built");
+</script>
+
+</html>
