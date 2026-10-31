@@ -400,15 +400,37 @@ function drawParts(groups) {
 }
 
 // ---------- Bluetooth ----------
-const SVC = 0xffff, FF22 = 0xff22, FF11 = 0xff11;
+// Full 128-bit UUIDs: some iOS Web Bluetooth browsers reject the short numeric aliases.
+const SVC = "0000ffff-0000-1000-8000-00805f9b34fb";
+const FF22 = "0000ff22-0000-1000-8000-00805f9b34fb";
+const FF11 = "0000ff11-0000-1000-8000-00805f9b34fb";
+// Tried in order until the browser accepts one; a user cancel stops the search.
+const DEVICE_REQUESTS = [
+  { label: "name SERIES", opts: { filters: [{ namePrefix: "SERIES" }], optionalServices: [SVC] } },
+  { label: "service FFFF", opts: { filters: [{ services: [SVC] }] } },
+  { label: "any device", opts: { acceptAllDevices: true, optionalServices: [SVC] } },
+];
+
+async function requestWatch() {
+  let last;
+  for (const r of DEVICE_REQUESTS) {
+    try {
+      log(`asking for watch (${r.label})…`);
+      return await navigator.bluetooth.requestDevice(r.opts);
+    } catch (e) {
+      last = e;
+      log(`  ${e.name}: ${e.message}`, "err");
+      if (/cancel/i.test(e.message)) break;
+    }
+  }
+  throw last;
+}
 
 async function connect() {
   if (!navigator.bluetooth) { log("This browser has no Web Bluetooth. On iPhone, open this page in Bluefy.", "err"); return; }
   try {
     setStatus("Choosing watch…", "busy");
-    const device = await navigator.bluetooth.requestDevice({
-      filters: [{ namePrefix: "SERIES" }, { services: [SVC] }], optionalServices: [SVC],
-    });
+    const device = await requestWatch();
     device.addEventListener("gattserverdisconnected", onDisconnect);
     log(`connecting to ${device.name || "watch"}…`);
     const server = await device.gatt.connect();
@@ -427,7 +449,7 @@ async function connect() {
     setStatus(`Connected to ${device.name || "watch"}`, "on");
     $("disconnect").disabled = false; $("connect").disabled = true; $("upload").disabled = !state.face;
   } catch (e) {
-    log(`connect failed: ${e.message}`, "err"); setStatus("Not connected", "off");
+    log(`connect failed: ${e && e.name}: ${e && e.message}`, "err"); setStatus("Connect failed (see log)", "bad");
   }
 }
 
