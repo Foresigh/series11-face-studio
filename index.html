@@ -134,7 +134,8 @@ select { font: inherit; padding: 6px 8px; border-radius: 6px; border: 1px solid 
       </div>
       <div class="opts">
         <label><input id="optListen" type="checkbox" checked> <span>Listen for watch replies (FF11)<small>FitPro keeps this on. Replies show in the log.</small></span></label>
-        <label><input id="optBind" type="checkbox" checked> <span>Send bind first<small><code>cd00021301</code>, FitPro's first command after connecting.</small></span></label>
+        <label><input id="optTime" type="checkbox" checked> <span>Set the watch clock first<small>FitPro's real first command after connecting (<code>cd000912010100…</code>).</small></span></label>
+        <label><input id="optBind" type="checkbox"> <span>Send bind first<small><code>cd00021301</code>. FitPro only sends this when pairing a new watch; leave off.</small></span></label>
         <label><input id="optAndroid" type="checkbox"> <span>Send "Android no-pairing" first<small><code>cd000612010a000102</code>. Android-only; leave off on iPhone.</small></span></label>
         <label for="pace" class="row" style="gap:8px"><span>Pace</span>
           <select id="pace">
@@ -490,6 +491,13 @@ async function upload() {
   try {
     const startup = [];
     if ($("optAndroid").checked) startup.push(["android no-pairing", "cd000612010a000102"]);
+    if ($("optTime").checked) {
+      // FitPro packs local time as year-2000:6 month:4 day:5 hour:5 min:6 sec:6, sent twice
+      const d = new Date();
+      const t = (((((d.getFullYear() - 2000) * 16 + d.getMonth() + 1) * 32 + d.getDate()) * 32 + d.getHours()) * 64 + d.getMinutes()) * 64 + d.getSeconds();
+      const h = "cd00091201010004" + (t >>> 0).toString(16).padStart(8, "0");
+      startup.push(["set time", h], ["set time", h]);
+    }
     if ($("optBind").checked) startup.push(["bind", "cd00021301"]);
     for (const [name, h] of startup) {
       log(`sending ${name}: ${h}`);
@@ -552,7 +560,7 @@ $("btNote").textContent = navigator.bluetooth
   : "This browser can't use Bluetooth. On iPhone, open this page in the Bluefy app.";
 
 document.fonts.load(`700 40px ${FONT}`).catch(() => {}).finally(build);
-log("ready · page version 3 · default face built");
+log("ready · page version 4 · default face built");
 log(`browser: ${navigator.userAgent}`);
 log(`bluetooth object: ${navigator.bluetooth ? Object.keys(Object.getPrototypeOf(navigator.bluetooth) || {}).concat(Object.keys(navigator.bluetooth)).join(", ") || "present" : "missing"}`);
 </script>
